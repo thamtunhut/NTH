@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chương trình Lucky Draw</title>
+    <style>
+      :root {
+        --primary-color: #0d6efd;
+        --secondary-color: #6c757d;
+        --success-color: #198754;
+        --danger-color: #dc3545;
+        --light-color: #f8f9fa;
+        --dark-color: #212529;
+        --border-color: #dee2e6;
+        --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        /* Điều khiển độ trong suốt & blur cho các panel nền trắng */
+        --panel-alpha: 0.3; /* 0 → 1 */
+        --panel-blur: 6px; /* 0px → 12px */
+		/* Kích thước ô số (sẽ được JS điều chỉnh theo số lượng ô) */
+		 --digit-w: 70px;
+		  --digit-h: 90px;
+		  --digit-font: 3.5rem;
+		   --digit-gap: 1rem;
+      }
+
+      /* Nền công nghệ */
+      body {
+        font-family: var(--font-family);
+        color: var(--dark-color);
+        min-height: 100vh;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        background: radial-gradient(
+          1200px 700px at 20% -10%,
+          #e8f1ff 0%,
+          #f0f2f5 60%,
+          #eef2ff 100%
+        );
+        transition: background-image 0.5s ease-in-out;
+      }
+      .container {
+        width: 100%;
+        max-width: 1100px;
+        background: rgba(255, 255, 255, var(--panel-alpha));
+        border-radius: 16px;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+        padding: 2rem 2rem 2.25rem;
+        backdrop-filter: blur(var(--panel-blur));
+      }
+      body.custom-bg .container {
+        background: rgba(255, 255, 255, var(--panel-alpha));
+      }
+      h1,
+      h2 {
+        margin: 0 0 1rem 0;
+        text-align: center;
+      }
+      h2 {
+        color: var(--dark-color);
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 0.5rem;
+        margin-top: 1.5rem;
+      }
+      .hidden {
+        display: none !important;
+      }
+
+      /* ---------- FORM CÀI ĐẶT ---------- */
+      .form-group {
+        margin-bottom: 1.25rem;
+      }
+      .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+      }
+      .form-group input[type="text"],
+      .form-group input[type="number"],
+      .form-group input[type="file"],
+      select {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        font-size: 1rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+      .form-group input:focus,
+      select:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2);
+      }
+      .prize-item {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 0.75rem;
+      }
+      .prize-item input[type="text"] {
+        flex: 1;
+      }
+      .prize-item input[type="number"] {
+        width: 120px;
+      }
+      .remove-prize-btn {
+        background: #dc3545;
+        color: #fff;
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-weight: 700;
+        line-height: 32px;
+      }
+      .btn {
+        display: inline-block;
+        padding: 0.8rem 1.2rem;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 700;
+        transition: transform 0.1s;
+      }
+      .btn:active {
+        transform: scale(0.98);
+      }
+      .btn-primary {
+        background: var(--primary-color);
+        color: #fff;
+        width: 100%;
+        padding: 1rem;
+        font-size: 1.1rem;
+      }
+      .btn-primary:hover {
+        background: #0b5ed7;
+      }
+      .btn-secondary {
+        background: var(--secondary-color);
+        color: #fff;
+      }
+      .btn-tertiary {
+        width: 100%;
+        background: none;
+        border: 2px dashed var(--secondary-color);
+        color: var(--secondary-color);
+      }
+      .btn-tertiary:hover {
+        background: #f8f9fa;
+      }
+
+      /* ---------- VIEW SAU KHI BẮT ĐẦU ---------- */
+      #main-view.hidden {
+        display: none !important;
+      }
+      #main-view {
+        width: 100%;
+      }
+      /* Mặc định chỉ hiển thị khu LuckyDraw ở giữa */
+      #main-view:not(.hidden) {
+        display: flex;
+        justify-content: center;
+      }
+      #history-panel {
+        display: none;
+      }
+
+      /* Chế độ Lịch sử toàn màn hình (F1) */
+      #main-view.history-only {
+        display: block;
+      }
+      #main-view.history-only #main-lottery-interface {
+        display: none !important;
+      }
+      #main-view.history-only #history-panel {
+        display: block !important;
+        max-width: 100%;
+      }
+
+      /* Khối LuckyDraw */
+      #main-lottery-interface {
+        width: 100%;
+        max-width: 900px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, calc(var(--panel-alpha) * 1)),
+          rgba(246, 247, 251, calc(var(--panel-alpha) * 1))
+        );
+        border-radius: 14px;
+        padding: 1.25rem 1.25rem 1.5rem;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.06);
+        backdrop-filter: blur(var(--panel-blur));
+      }
+      /* Tiêu đề chương trình: gradient text */
+      #lottery-title-display {
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        margin: 0 0 0.5rem;
+        background: linear-gradient(90deg, #0ea5e9, #22c55e, #8b5cf6);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        filter: drop-shadow(0 2px 8px rgba(13, 110, 253, 0.2));
+      }
+
+      /* Các ô số */
+      #lottery-display {
+        display: flex;
+        justify-content: center;
+        gap: var(--digit-gap);
+        margin: 1.5rem 0;
+        min-height: 120px;
+      }
+      .digit-box {
+        width: var(--digit-w);
+        height: var(--digit-h);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: var(--digit-font);
+        font-weight: 800;
+        border-radius: 12px;
+        border: 1px solid #cfd3da;
+        background: linear-gradient(180deg, #fff, #f1f3f6);
+        text-shadow: 0 1px 1px #fff;
+        box-shadow: 0 8px 20px rgba(13, 110, 253, 0.08),
+          inset 0 1px 3px rgba(255, 255, 255, 0.8);
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        letter-spacing: 1px;
+        transition: 0.3s;
+      }
+      .digit-box.stopped {
+        border-color: var(--danger-color);
+        color: var(--danger-color);
+        transform: translateY(-2px) scale(1.05);
+        outline: 2px solid rgba(13, 110, 253, 0.25);
+        box-shadow: 0 8px 24px rgba(13, 110, 253, 0.15),
+          0 0 0 6px rgba(13, 110, 253, 0.08),
+          inset 0 1px 3px rgba(255, 255, 255, 0.9);
+      }
+
+      .controls {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        justify-content: center;
+        margin-top: auto;
+        padding-top: 0.75rem;
+        border-top: 1px dashed var(--border-color);
+      }
+      .controls select {
+        max-width: 420px;
+        flex: 1;
+      }
+      #start-btn {
+        background: var(--success-color);
+        color: #fff;
+      }
+      #start-btn:hover {
+        background: #157347;
+      }
+      #start-btn:disabled {
+        background: #aaa;
+        cursor: not-allowed;
+      }
+
+      /* Khối chúc mừng & nhiều người trúng: không đẩy layout */
+      #winner-info,
+      #multiple-winners-info {
+        display: none;
+        text-align: center;
+        margin: 1rem 0 0;
+        padding: 1rem 1.25rem;
+        border-radius: 12px;
+        background: linear-gradient(
+          90deg,
+          rgba(25, 135, 84, 0.1),
+          rgba(25, 135, 84, 0.18)
+        );
+        box-shadow: inset 0 0 0 1px rgba(25, 135, 84, 0.25);
+        animation: fadeIn 0.5s ease;
+        max-height: 260px;
+        overflow: auto;
+      }
+      #winner-info h3,
+      #multiple-winners-info h3 {
+        margin: 0.25rem 0 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--success-color);
+        font-size: 1.1rem;
+      }
+      #multiple-winners-info ul {
+        list-style: none;
+        padding: 0;
+        margin: 1rem 0;
+        text-align: left;
+        display: inline-block;
+      }
+      #multiple-winners-info li {
+        margin: 0.35rem 0;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* ===== Recent Winners under the lottery ===== */
+      #recent-winners {
+        margin-top: 1rem;
+        background: rgba(255, 255, 255, var(--panel-alpha));
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+        padding: 0.75rem 1rem 1rem;
+        backdrop-filter: blur(var(--panel-blur));
+      }
+      #recent-winners .recent-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+      }
+      #recent-winners .recent-header h3 {
+        margin: 0;
+        font-size: 1.05rem;
+        letter-spacing: 0.3px;
+        color: #0c4a6e;
+      }
+      #recent-winners-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        max-height: 200px;
+        overflow: auto;
+      }
+      #recent-winners-list li {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.6rem 0.5rem;
+        border-bottom: 1px dashed var(--border-color);
+        font-size: 0.98rem;
+      }
+      #recent-winners-list li:last-child {
+        border-bottom: none;
+      }
+      #recent-winners-list li:hover {
+        background: #f9fbff;
+      }
+      #recent-winners-list li.added {
+        background: #eef6ff;
+        transition: background 0.4s;
+      }
+      .rw-left {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .rw-name {
+        font-weight: 700;
+      }
+      .rw-code {
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        background: #f3f4f6;
+        border: 1px solid #e5e7eb;
+        color: #111827;
+        padding: 0.15rem 0.45rem;
+        border-radius: 6px;
+        letter-spacing: 0.4px;
+      }
+      .rw-prize {
+        justify-self: end;
+        font-size: 0.85rem;
+        padding: 0.25rem 0.6rem;
+        border-radius: 999px;
+        background: #eef6ff;
+        color: #0c4a6e;
+        border: 1px solid #cfe3ff;
+      }
+      @media (max-width: 640px) {
+        #recent-winners-list li {
+          grid-template-columns: 1fr;
+        }
+        .rw-prize {
+          justify-self: start;
+        }
+      }
+
+      /* ---------- PANEL LỊCH SỬ (F1) ---------- */
+      #history-panel {
+        background: rgba(255, 255, 255, var(--panel-alpha));
+        border-radius: 14px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.06);
+        padding: 1rem 1rem 1.25rem;
+        min-height: 520px;
+        max-height: 75vh;
+        margin: 0 auto;
+        max-width: 900px;
+        backdrop-filter: blur(var(--panel-blur));
+      }
+      #history-panel h2 {
+        position: sticky;
+        top: 0;
+        background: rgba(255, 255, 255, var(--panel-alpha));
+        z-index: 2;
+        padding-top: 0.5rem;
+      }
+      .table-wrap {
+        overflow: auto;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, var(--panel-alpha));
+        max-height: calc(75vh - 120px);
+      }
+      #history-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      #history-table th,
+      #history-table td {
+        border: 1px solid var(--border-color);
+        padding: 0.75rem 1rem;
+        text-align: center;
+      }
+      #history-table th {
+        background: var(--light-color);
+        font-weight: 700;
+      }
+      #history-body tr:nth-child(even) {
+        background: #f9f9f9;
+      }
+      #history-body tr.added {
+        background: #e9f3ff;
+        transition: background 0.25s;
+      }
+      #reset-btn {
+        width: 100%;
+        margin-top: 1rem;
+      }
+
+      /* Modal chung */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transition: 0.25s;
+      }
+      .modal-overlay.visible {
+        opacity: 1;
+        visibility: visible;
+      }
+      .modal-content {
+        width: 90%;
+        max-width: 520px;
+        background: rgba(255, 255, 255, var(--panel-alpha));
+        border-radius: 12px;
+        padding: 2rem 2.25rem;
+        text-align: center;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+        backdrop-filter: blur(var(--panel-blur));
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .container {
+          padding: 1rem;
+        }
+        #lottery-display {
+          gap: 0.5rem;
+        }
+        .digit-box {
+          width: 58px;
+          height: 78px;
+          font-size: 2.75rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- ===== Section 1: CÀI ĐẶT ===== -->
+      <div id="setup-view">
+        <h1 style="color: var(--primary-color)">Cài đặt Lucky Draw</h1>
+        <form id="setup-form">
+          <div class="form-group">
+            <label for="lottery-title-input"
+              >Tên chương trình Lucky Draw:</label
+            >
+            <input
+              id="lottery-title-input"
+              type="text"
+              placeholder="Nhập tên chương trình (mặc định: Lucky Draw)"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="num-digits">Số lượng ký tự mã số (1-20):</label>
+            <input
+              id="num-digits"
+              type="number"
+              min="1"
+              max="20"
+              value="6"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="customer-file"
+              >Tải lên file CSV thông tin người chơi:</label
+            >
+            <input id="customer-file" type="file" accept=".csv" required />
+            <small
+              ><i
+                >*File CSV cần có cột "ma_so" và "ten_kh" (viết liền không dấu).
+                Mã số có thể chứa chữ và số.</i
+              ></small
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="background-file">Chọn ảnh nền (tùy chọn):</label>
+            <input id="background-file" type="file" accept="image/*" />
+          </div>
+
+          <!-- Điều khiển độ trong suốt & blur -->
+          <div
+            class="form-group"
+            style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem"
+          >
+            <div>
+              <label for="opacity-range">Độ trong suốt nền trắng:</label>
+              <input
+                id="opacity-range"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value="0.3"
+              />
+              <small><span id="opacity-label">0.3</span></small>
+            </div>
+            <div>
+              <label for="blur-range">Độ mờ nền (blur):</label>
+              <input
+                id="blur-range"
+                type="range"
+                min="0"
+                max="12"
+                step="1"
+                value="6"
+              />
+              <small><span id="blur-label">6px</span></small>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Thông tin giải thưởng:</label>
+            <div id="prizes-container"></div>
+            <button type="button" id="add-prize-btn" class="btn btn-tertiary">
+              + Thêm giải thưởng
+            </button>
+          </div>
+
+          <div class="form-group" style="margin-top: 0.5rem">
+            <label style="display: flex; align-items: center; gap: 0.5rem">
+              <input type="checkbox" id="multi-winner-mode" />
+              Quay nhiều giải cùng lúc
+            </label>
+          </div>
+
+          <button class="btn btn-primary" type="submit">
+            Bắt đầu Chương trình
+          </button>
+        </form>
+      </div>
+
+      <!-- ===== Section 2: LUCKY DRAW ===== -->
+      <div id="main-view" class="hidden">
+        <div id="main-lottery-interface">
+          <h1 id="lottery-title-display">Lucky Draw</h1>
+
+          <div id="lottery-display"><!-- tạo ô số bằng JS --></div>
+
+          <div class="controls">
+            <select id="prize-select" class="btn"></select>
+            <button id="start-btn" class="btn">QUAY SỐ</button>
+          </div>
+
+          <!-- Danh sách người trúng gần đây (nằm dưới ô quay số) -->
+          <div id="recent-winners" aria-live="polite">
+            <div class="recent-header">
+              <h3>Danh sách</h3>
+            </div>
+            <ul id="recent-winners-list"></ul>
+          </div>
+
+          <div id="winner-info" class="hidden">
+            <h3>CHÚC MỪNG</h3>
+            <p>
+              Người chơi: <strong id="winner-name"></strong> - Mã số:
+              <strong id="winner-code"></strong>
+            </p>
+          </div>
+
+          <div id="multiple-winners-info" class="hidden">
+            <h3>CHÚC MỪNG</h3>
+            <p>Giải thưởng: <strong id="multi-prize-name"></strong></p>
+            <ul id="multi-winners-list"></ul>
+          </div>
+        </div>
+
+        <!-- SECTION LỊCH SỬ (chỉ hiển thị khi nhấn F1) -->
+        <div id="history-panel">
+          <h2>Danh sách trúng thưởng</h2>
+          <div class="table-wrap">
+            <table id="history-table">
+              <thead>
+                <tr>
+                  <th>Giải thưởng</th>
+                  <th>Mã số trúng thưởng</th>
+                  <th>Tên người chơi</th>
+                </tr>
+              </thead>
+              <tbody id="history-body"></tbody>
+            </table>
+          </div>
+          <!-- Nút xuất CSV -->
+          <button
+            id="export-btn"
+            class="btn"
+            style="
+              width: 100%;
+              margin-top: 0.75rem;
+              background: var(--primary-color);
+              color: #fff;
+            "
+          >
+            Tải CSV
+          </button>
+          <button id="reset-btn" class="btn btn-secondary">Cài đặt lại</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Modal xác nhận ===== -->
+    <div id="confirmation-modal" class="modal-overlay">
+      <div class="modal-content">
+        <h3>Xác nhận Giải thưởng</h3>
+        <p>
+          Người chơi <strong id="modal-winner-name"></strong> với mã số
+          <strong id="modal-winner-code"></strong> đã trúng thưởng.
+        </p>
+        <div class="modal-buttons">
+          <button
+            id="confirm-btn"
+            class="btn"
+            style="background: var(--success-color); color: #fff"
+          >
+            Đồng ý
+          </button>
+          <button
+            id="redraw-btn"
+            class="btn"
+            style="background: var(--danger-color); color: #fff"
+          >
+            Quay lại
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Modal thông báo tuỳ biến ===== -->
+    <div id="custom-alert-modal" class="modal-overlay">
+      <div class="modal-content">
+        <h3 id="custom-alert-title">Thông báo</h3>
+        <p id="custom-alert-message"></p>
+        <div class="modal-buttons">
+          <button
+            id="custom-alert-ok-btn"
+            class="btn"
+            style="background: var(--primary-color); color: #fff"
+          >
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        /* ---- Ngăn context menu, F12, Ctrl+S... ---- */
+        document.addEventListener("contextmenu", (e) => e.preventDefault());
+        document.addEventListener("keydown", (e) => {
+          if (
+            e.key === "F12" ||
+            (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J")) ||
+            (e.ctrlKey && e.key === "U") ||
+            ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s")
+          )
+            e.preventDefault();
+        });
+
+        /* ---- DOM ---- */
+        const setupView = document.getElementById("setup-view");
+        const mainView = document.getElementById("main-view");
+        const setupForm = document.getElementById("setup-form");
+        const addPrizeBtn = document.getElementById("add-prize-btn");
+        const prizesContainer = document.getElementById("prizes-container");
+        const customerFileInput = document.getElementById("customer-file");
+        const backgroundFileInput = document.getElementById("background-file");
+        const numDigitsInput = document.getElementById("num-digits");
+        const multiWinnerModeCheckbox =
+          document.getElementById("multi-winner-mode");
+        const lotteryTitleInput = document.getElementById(
+          "lottery-title-input"
+        );
+        const lotteryTitleDisplay = document.getElementById(
+          "lottery-title-display"
+        );
+
+        const mainLotteryInterface = document.getElementById(
+          "main-lottery-interface"
+        );
+        const historySection = document.getElementById("history-panel");
+        const lotteryDisplay = document.getElementById("lottery-display");
+        const prizeSelect = document.getElementById("prize-select");
+        const startBtn = document.getElementById("start-btn");
+        const resetBtn = document.getElementById("reset-btn");
+        const exportBtn = document.getElementById("export-btn");
+        const winnerInfo = document.getElementById("winner-info");
+        const winnerNameSpan = document.getElementById("winner-name");
+        const winnerCodeSpan = document.getElementById("winner-code");
+        const multipleWinnersInfo = document.getElementById(
+          "multiple-winners-info"
+        );
+        const multiPrizeNameSpan = document.getElementById("multi-prize-name");
+        const multiWinnersList = document.getElementById("multi-winners-list");
+        const historyBody = document.getElementById("history-body");
+        const recentWinnersList = document.getElementById(
+          "recent-winners-list"
+        );
+        const RECENT_LIMIT = 20;
+
+        /* ---- Modal ---- */
+        const confirmationModal = document.getElementById("confirmation-modal");
+        const modalWinnerName = document.getElementById("modal-winner-name");
+        const modalWinnerCode = document.getElementById("modal-winner-code");
+        const confirmBtn = document.getElementById("confirm-btn");
+        const redrawBtn = document.getElementById("redraw-btn");
+
+        const customAlertModal = document.getElementById("custom-alert-modal");
+        const customAlertTitle = document.getElementById("custom-alert-title");
+        const customAlertMessage = document.getElementById(
+          "custom-alert-message"
+        );
+        const customAlertOkBtn = document.getElementById("custom-alert-ok-btn");
+
+        /* ---- State ---- */
+        let customers = [];
+        let prizes = [];
+        let winners = [];
+        let numDigits = 6;
+        let tempWinner = null;
+        let tempPrize = null;
+        let isMultiWinnerMode = false;
+
+        /* ---- Helpers ---- */
+        const showAlert = (message, title = "Thông báo") => {
+          customAlertTitle.textContent = title;
+          customAlertMessage.textContent = message;
+          customAlertModal.classList.add("visible");
+          return new Promise((resolve) => {
+            const ok = () => {
+              customAlertModal.classList.remove("visible");
+              customAlertOkBtn.removeEventListener("click", ok);
+              resolve();
+            };
+            customAlertOkBtn.addEventListener("click", ok);
+          });
+        };
+
+        const addPrizeRow = () => {
+          const id = "prize-item-" + Date.now();
+          const item = document.createElement("div");
+          item.className = "prize-item";
+          item.id = id;
+          item.innerHTML = `
+            <input type="text" placeholder="Tên giải thưởng (ví dụ: Giải Nhất)" required>
+            <input type="number" placeholder="Số lượng" min="1" value="1" required>
+            <button type="button" class="remove-prize-btn" onclick="document.getElementById('${id}').remove()">-</button>
+          `;
+          prizesContainer.appendChild(item);
+        };
+        addPrizeRow();
+
+        const parseCSV = (data) => {
+          const rows = data.split(/\r?\n/).filter((r) => r.trim() !== "");
+          if (rows.length < 2) return [];
+          const header = rows[0].split(",").map((h) => h.trim().toLowerCase());
+          const codeIndex = header.indexOf("ma_so");
+          const nameIndex = header.indexOf("ten_kh");
+          if (codeIndex === -1 || nameIndex === -1)
+            throw new Error('File CSV phải chứa cột "ma_so" và "ten_kh".');
+          return rows
+            .slice(1)
+            .map((row) => {
+              const v = row.split(",");
+              if (v.length >= header.length) {
+                const ma_so = v[codeIndex].trim();
+                const ten_kh = v[nameIndex].trim();
+                if (ma_so && ten_kh) return { ma_so, ten_kh, isWinner: false };
+              }
+              return null;
+            })
+            .filter(Boolean);
+        };
+
+        const initializeApp = () => {
+          lotteryDisplay.innerHTML = "";
+          for (let i = 0; i < numDigits; i++) {
+            const d = document.createElement("div");
+            d.className = "digit-box";
+            d.textContent = "-";
+            lotteryDisplay.appendChild(d);
+          }
+          updatePrizeSelect();
+          historyBody.innerHTML = "";
+          recentWinnersList.innerHTML = "";
+          winners = [];
+          winnerInfo.style.display = "none";
+          multipleWinnersInfo.style.display = "none";
+          startBtn.disabled = false;
+
+          mainLotteryInterface.classList.remove("hidden");
+          // Mặc định chế độ LuckyDraw trung tâm → ẩn lịch sử
+          mainView.classList.remove("history-only");
+          historySection.classList.add("hidden");
+        };
+
+        // Điều chỉnh kích thước ô số theo số lượng ô để vừa giao diện
+        const adjustDigitSizing = (count) => {
+          let w = 70, h = 90, f = 3.5, gap = 1.0;
+          if (count >= 11 && count <= 14) {
+            w = 56; h = 78; f = 3.0; gap = 0.75;
+          } else if (count >= 15) {
+            w = 44; h = 64; f = 2.2; gap = 0.5;
+          }
+          document.documentElement.style.setProperty('--digit-w', w + 'px');
+          document.documentElement.style.setProperty('--digit-h', h + 'px');
+          document.documentElement.style.setProperty('--digit-font', f + 'rem');
+          document.documentElement.style.setProperty('--digit-gap', gap + 'rem');
+        };
+
+        const updatePrizeSelect = () => {
+          prizeSelect.innerHTML = "";
+          let has = false;
+          prizes.forEach((p, i) => {
+            const opt = document.createElement("option");
+            opt.value = i;
+            opt.textContent = `${p.name} (Còn lại: ${p.remaining}/${p.quantity})`;
+            if (p.remaining === 0) {
+              opt.disabled = true;
+              opt.style.color = "#999";
+            } else {
+              has = true;
+            }
+            prizeSelect.appendChild(opt);
+          });
+          startBtn.disabled = !has;
+          startBtn.textContent = has ? "QUAY SỐ" : "HẾT GIẢI";
+        };
+
+        const resetLotteryDisplay = () => {
+          [...lotteryDisplay.children].forEach((b) => {
+            b.classList.remove("stopped");
+            b.textContent = "-";
+          });
+        };
+
+        const pushRecentWinner = (winner, prize) => {
+          const li = document.createElement("li");
+          li.innerHTML = `
+            <div class="rw-left">
+              <span class="rw-name">${winner.ten_kh}</span>
+              <span class="rw-code">${winner.ma_so}</span>
+            </div>
+            <span class="rw-prize">${prize.name}</span>
+          `;
+          // Mới nhất lên trên
+          recentWinnersList.prepend(li);
+          li.classList.add("added");
+          setTimeout(() => li.classList.remove("added"), 1200);
+          // Giới hạn số dòng
+          while (recentWinnersList.children.length > RECENT_LIMIT) {
+            recentWinnersList.removeChild(recentWinnersList.lastElementChild);
+          }
+        };
+
+        const finalizeSingleWinner = (winner, prize) => {
+          winnerNameSpan.textContent = winner.ten_kh;
+          winnerCodeSpan.textContent = winner.ma_so;
+          winnerInfo.style.display = "block";
+          winnerInfo.classList.remove("hidden");
+
+          const row = document.createElement("tr");
+          row.innerHTML = `<td>${prize.name}</td><td>${winner.ma_so}</td><td>${winner.ten_kh}</td>`;
+          historyBody.prepend(row);
+          row.classList.add("added");
+          setTimeout(() => row.classList.remove("added"), 2000);
+
+          // recent list dưới ô quay số
+          pushRecentWinner(winner, prize);
+
+          winners.push({ ...winner, prizeName: prize.name });
+
+          updatePrizeSelect();
+          prizeSelect.disabled = false;
+          startBtn.disabled = false;
+        };
+
+        const addWinnerToMultiList = (winner, prize) => {
+          const li = document.createElement("li");
+          li.innerHTML = `<strong>${winner.ten_kh}</strong> - Mã số: ${winner.ma_so}`;
+          // điền từ trên xuống
+          multiWinnersList.prepend(li);
+
+          const row = document.createElement("tr");
+          row.innerHTML = `<td>${prize.name}</td><td>${winner.ma_so}</td><td>${winner.ten_kh}</td>`;
+          historyBody.prepend(row);
+          row.classList.add("added");
+          setTimeout(() => row.classList.remove("added"), 2000);
+
+          // recent list
+          pushRecentWinner(winner, prize);
+
+          winners.push({ ...winner, prizeName: prize.name });
+        };
+
+        const showConfirmationModal = (w) => {
+          modalWinnerName.textContent = w.ten_kh;
+          modalWinnerCode.textContent = w.ma_so;
+          confirmationModal.classList.add("visible");
+        };
+        const hideConfirmationModal = () =>
+          confirmationModal.classList.remove("visible");
+
+        const stopDigitsSequentially = (code) =>
+          new Promise((resolve) => {
+            const boxes = lotteryDisplay.children;
+            const target = code.toUpperCase().padStart(numDigits, " ");
+            let i = 0;
+            const interval = setInterval(() => {
+              for (let j = 0; j < numDigits; j++) {
+                if (!boxes[j].classList.contains("stopped")) {
+                  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+                  boxes[j].textContent =
+                    chars[Math.floor(Math.random() * chars.length)];
+                }
+              }
+            }, 100);
+
+            const stopNext = () => {
+              if (i < numDigits) {
+                boxes[i].classList.add("stopped");
+                boxes[i].textContent = target[i] || " ";
+                i++;
+                setTimeout(stopNext, 500);
+              } else {
+                clearInterval(interval);
+                resolve();
+              }
+            };
+            stopNext();
+          });
+
+        const runSingleWinnerLotterySequence = (winner, prize) => {
+          startBtn.disabled = true;
+          prizeSelect.disabled = true;
+          winnerInfo.style.display = "none";
+          multipleWinnersInfo.style.display = "none";
+          resetLotteryDisplay();
+          stopDigitsSequentially(winner.ma_so).then(() => {
+            showConfirmationModal(winner);
+            tempWinner = winner;
+            tempPrize = prize;
+          });
+        };
+
+        const runMultiWinnerLottery = async (prize) => {
+          startBtn.disabled = true;
+          prizeSelect.disabled = true;
+          winnerInfo.style.display = "none";
+
+          const available = customers.filter((c) => !c.isWinner);
+          if (available.length < prize.remaining) {
+            await showAlert(
+              `Không đủ người chơi để quay giải này. Còn ${prize.remaining} giải thưởng nhưng chỉ còn ${available.length} người.`
+            );
+            startBtn.disabled = false;
+            prizeSelect.disabled = false;
+            return;
+          }
+
+          multipleWinnersInfo.style.display = "block";
+          multiPrizeNameSpan.textContent = prize.name;
+          multiWinnersList.innerHTML = "";
+
+          // Lưu lại index của giải đang quay để giữ nguyên selection khi refresh label
+          const prizeIndex = prizes.indexOf(prize);
+          // Tổng lượt cần quay cho giải này
+          const total = prize.remaining;
+          // Reset ô số để đảm bảo lượt đầu có hiệu ứng
+          resetLotteryDisplay();
+
+          for (let i = 0; i < total; i++) {
+            const idx = Math.floor(Math.random() * available.length);
+            const winner = available.splice(idx, 1)[0];
+            winner.isWinner = true;
+
+            await stopDigitsSequentially(winner.ma_so);
+
+            winnerInfo.classList.remove("hidden");
+            winnerNameSpan.textContent = winner.ten_kh;
+            winnerCodeSpan.textContent = winner.ma_so;
+
+            addWinnerToMultiList(winner, prize);
+
+            // ↓↓↓ Cập nhật realtime số lượng còn lại ngay sau mỗi người trúng
+            prize.remaining--;
+            updatePrizeSelect();
+            if (prizeIndex > -1) prizeSelect.value = String(prizeIndex);
+
+            // Tiếp tục quay nếu chưa hết lượt cho giải này
+            if (i < total - 1) {
+              await new Promise((r) => setTimeout(r, 1600));
+              resetLotteryDisplay();
+              winnerInfo.classList.add("hidden");
+            }
+          }
+
+          // Sau vòng lặp, prize.remaining đã về 0
+          updatePrizeSelect();
+		  if (prizeIndex > -1) prizeSelect.value = String(prizeIndex);
+          startBtn.disabled = false;
+          prizeSelect.disabled = false;
+        };
+
+        /* ---- Events ---- */
+        addPrizeBtn.addEventListener("click", addPrizeRow);
+
+        setupForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const title = (lotteryTitleInput.value || "").trim() || "Lucky Draw";
+          lotteryTitleDisplay.textContent = title;
+
+          const bg = backgroundFileInput.files[0];
+          if (bg) {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+              document.body.style.backgroundImage = `url('${ev.target.result}')`;
+              document.body.style.backgroundSize = "cover";
+              document.body.style.backgroundPosition = "center";
+              document.body.style.backgroundAttachment = "fixed";
+              document.body.classList.add("custom-bg");
+              // áp dụng lại opacity/blur (biến CSS) khi có nền
+              applyPanelVisuals();
+            };
+            reader.readAsDataURL(bg);
+          }
+
+          const file = customerFileInput.files[0];
+          if (!file) {
+            await showAlert("Vui lòng chọn file người chơi!");
+            return;
+          }
+
+          const reader = new FileReader();
+          reader.onload = async (ev) => {
+            try {
+              customers = parseCSV(ev.target.result);
+              if (customers.length === 0) {
+                await showAlert(
+                  "Dữ liệu người chơi trong file CSV không hợp lệ hoặc rỗng."
+                );
+                return;
+              }
+
+              prizes = [];
+              prizesContainer
+                .querySelectorAll(".prize-item")
+                .forEach((item) => {
+                  const name = item
+                    .querySelector('input[type="text"]')
+                    .value.trim();
+                  const quantity = parseInt(
+                    item.querySelector('input[type="number"]').value
+                  );
+                  if (name && quantity > 0)
+                    prizes.push({ name, quantity, remaining: quantity });
+                });
+              if (prizes.length === 0) {
+                await showAlert("Vui lòng nhập ít nhất một giải thưởng.");
+                return;
+              }
+
+              numDigits = parseInt(numDigitsInput.value);
+              isMultiWinnerMode = multiWinnerModeCheckbox.checked;
+
+              adjustDigitSizing(numDigits);
+			  initializeApp();
+              setupView.classList.add("hidden");
+              mainView.classList.remove("hidden");
+            } catch (err) {
+              await showAlert("Lỗi đọc file CSV: " + err.message);
+            }
+          };
+          reader.onerror = () => showAlert("Không thể đọc file đã chọn!");
+          reader.readAsText(file, "UTF-8");
+        });
+
+        startBtn.addEventListener("click", () => {
+          if (startBtn.disabled) return;
+
+          const idx = prizeSelect.value;
+          if (idx === "" || !prizes[idx]) return;
+          const prize = prizes[idx];
+          if (prize.remaining <= 0) return;
+
+          const available = customers.filter((c) => !c.isWinner);
+          if (available.length === 0) {
+            showAlert("Tất cả người chơi đã trúng thưởng!");
+            startBtn.disabled = true;
+            return;
+          }
+
+          // đảm bảo ở chế độ LuckyDraw trung tâm khi quay
+          mainView.classList.remove("history-only");
+          historySection.classList.add("hidden");
+
+          if (isMultiWinnerMode) {
+            runMultiWinnerLottery(prize);
+          } else {
+            const winIndex = Math.floor(Math.random() * available.length);
+            tempWinner = available[winIndex];
+            tempPrize = prize;
+            runSingleWinnerLotterySequence(tempWinner, tempPrize);
+          }
+        });
+
+        confirmBtn.addEventListener("click", () => {
+          if (!tempWinner || !tempPrize) return;
+          const original = customers.find((c) => c.ma_so === tempWinner.ma_so);
+          if (original) original.isWinner = true;
+          tempPrize.remaining--;
+          finalizeSingleWinner(tempWinner, tempPrize);
+          hideConfirmationModal();
+          tempWinner = null;
+          tempPrize = null;
+        });
+
+        redrawBtn.addEventListener("click", () => {
+          if (!tempWinner) return;
+          hideConfirmationModal();
+          resetLotteryDisplay();
+          prizeSelect.disabled = false;
+          startBtn.disabled = false;
+          tempWinner = null;
+          tempPrize = null;
+          updatePrizeSelect();
+        });
+
+        resetBtn?.addEventListener("click", async () => {
+          const confirmed = await new Promise((resolve) => {
+            const modal = document.createElement("div");
+            modal.className = "modal-overlay visible";
+            modal.innerHTML = `
+              <div class="modal-content">
+                <h3>Cài đặt lại</h3>
+                <p>Bạn có chắc muốn cài đặt lại? Mọi dữ liệu sẽ bị mất.</p>
+                <div class="modal-buttons">
+                  <button id="modal-confirm-yes" class="btn" style="background:var(--danger-color);color:#fff">Có</button>
+                  <button id="modal-confirm-no" class="btn" style="background:var(--secondary-color);color:#fff">Không</button>
+                </div>
+              </div>`;
+            document.body.appendChild(modal);
+            modal
+              .querySelector("#modal-confirm-yes")
+              .addEventListener("click", () => {
+                document.body.removeChild(modal);
+                resolve(true);
+              });
+            modal
+              .querySelector("#modal-confirm-no")
+              .addEventListener("click", () => {
+                document.body.removeChild(modal);
+                resolve(false);
+              });
+          });
+          if (confirmed) location.reload();
+        });
+
+        // === Xuất CSV danh sách trúng thưởng ===
+        const exportWinnersCSV = () => {
+          if (!winners || winners.length === 0) {
+            showAlert("Chưa có dữ liệu để xuất.");
+            return;
+          }
+          // Header
+          const rows = [["giai_thuong", "ma_so", "ten_kh"]];
+          // bảng lịch sử dùng prepend ⇒ mới nhất ở trên → export theo thứ tự đó
+          winners
+            .slice()
+            .reverse()
+            .forEach((w) => {
+              rows.push([w.prizeName ?? "", w.ma_so ?? "", w.ten_kh ?? ""]);
+            });
+          // CSV + BOM UTF-8
+          const csv = rows
+            .map((r) =>
+              r.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(",")
+            )
+            .join("\r\n");
+          const blob = new Blob(["\uFEFF" + csv], {
+            type: "text/csv;charset=utf-8;",
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          const date = new Date().toISOString().slice(0, 10);
+          a.href = url;
+          a.download = `ket-qua-luckydraw_${date}.csv`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        };
+
+        exportBtn?.addEventListener("click", exportWinnersCSV);
+
+        // === Điều khiển trong suốt & blur ===
+        const opacityRange = document.getElementById("opacity-range");
+        const blurRange = document.getElementById("blur-range");
+        const opacityLabel = document.getElementById("opacity-label");
+        const blurLabel = document.getElementById("blur-label");
+
+        const applyPanelVisuals = () => {
+          const alpha = Math.max(
+            0,
+            Math.min(1, parseFloat(opacityRange?.value || 0.3))
+          );
+          const blur = Math.max(0, parseInt(blurRange?.value || 6, 10));
+          document.documentElement.style.setProperty(
+            "--panel-alpha",
+            alpha.toString()
+          );
+          document.documentElement.style.setProperty(
+            "--panel-blur",
+            `${blur}px`
+          );
+          if (opacityLabel) opacityLabel.textContent = alpha.toFixed(2);
+          if (blurLabel) blurLabel.textContent = `${blur}px`;
+        };
+        applyPanelVisuals();
+        opacityRange?.addEventListener("input", applyPanelVisuals);
+        blurRange?.addEventListener("input", applyPanelVisuals);
+
+        // F1: chuyển sang "Lịch sử toàn màn hình" (ẩn LuckyDraw), nhấn lại để quay về
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "F1") {
+            event.preventDefault();
+            if (mainView.classList.contains("hidden")) return; // chỉ sau khi bắt đầu
+            const toHistory = !mainView.classList.contains("history-only");
+            mainView.classList.toggle("history-only", toHistory);
+            historySection.classList.toggle(
+              "hidden",
+              !toHistory ? true : false
+            );
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
