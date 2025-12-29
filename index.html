@@ -18,11 +18,22 @@
         /* Điều khiển độ trong suốt & blur cho các panel nền trắng */
         --panel-alpha: 0.3; /* 0 → 1 */
         --panel-blur: 6px; /* 0px → 12px */
-		/* Kích thước ô số (sẽ được JS điều chỉnh theo số lượng ô) */
-		 --digit-w: 70px;
-		  --digit-h: 90px;
-		  --digit-font: 3.5rem;
-		   --digit-gap: 1rem;
+        /* Kích thước ô số (sẽ được JS điều chỉnh theo số lượng ô) */
+        --digit-w: 70px;
+        --digit-h: 90px;
+        --digit-font: 3.5rem;
+        --digit-gap: 1rem;
+
+        /* ===== Modal sizing (NEW) ===== */
+        --modal-max-width: 780px;
+        --modal-padding-y: 2.25rem;
+        --modal-padding-x: 2.75rem;
+        --modal-radius: 16px;
+        --modal-title-size: 1.9rem; /* tiêu đề: “Xác nhận Giải thưởng” */
+        --modal-text-size: 1.5rem; /* dòng mô tả: “Người chơi …” */
+        --modal-button-font: 1.15rem; /* dòng mô tả: “Người chơi …” */
+        --modal-button-pad-y: 0.9rem;
+        --modal-button-pad-x: 1.4rem;
       }
 
       /* Nền công nghệ */
@@ -457,7 +468,7 @@
         margin-top: 1rem;
       }
 
-      /* Modal chung */
+      /* ===================== MODAL (UPDATED UI ONLY) ===================== */
       .modal-overlay {
         position: fixed;
         inset: 0;
@@ -469,20 +480,61 @@
         opacity: 0;
         visibility: hidden;
         transition: 0.25s;
+        padding: 1.25rem; /* giúp modal lớn vẫn không sát mép màn */
       }
       .modal-overlay.visible {
         opacity: 1;
         visibility: visible;
       }
       .modal-content {
-        width: 90%;
-        max-width: 520px;
-        background: rgba(255, 255, 255, var(--panel-alpha));
-        border-radius: 12px;
-        padding: 2rem 2.25rem;
+        width: min(92vw, var(--modal-max-width));
+        max-width: var(--modal-max-width);
+        background: rgba(255, 255, 255, calc(var(--panel-alpha) + 0.25));
+        border-radius: var(--modal-radius);
+        padding: var(--modal-padding-y) var(--modal-padding-x);
         text-align: center;
-        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+        box-shadow: 0 22px 60px rgba(0, 0, 0, 0.32);
         backdrop-filter: blur(var(--panel-blur));
+        border: 1px solid rgba(255, 255, 255, 0.35);
+      }
+      .modal-content h3 {
+        margin: 0 0 0.75rem;
+        font-size: var(--modal-title-size);
+        letter-spacing: 0.3px;
+      }
+      .modal-content p {
+        margin: 0.25rem 0 0;
+        font-size: var(--modal-text-size);
+        line-height: 1.55;
+      }
+      .modal-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        align-items: center;
+        margin-top: 1.4rem;
+        flex-wrap: wrap;
+      }
+      .modal-buttons .btn {
+        font-size: var(--modal-button-font);
+        padding: var(--modal-button-pad-y) var(--modal-button-pad-x);
+        min-width: 150px;
+        border-radius: 12px;
+      }
+      @media (max-width: 480px) {
+        .modal-content {
+          padding: 1.5rem 1.25rem;
+        }
+        .modal-content h3 {
+          font-size: 1.25rem;
+        }
+        .modal-content p {
+          font-size: 1.05rem;
+        }
+        .modal-buttons .btn {
+          width: 100%;
+          min-width: 0;
+        }
       }
 
       /* Responsive */
@@ -508,9 +560,7 @@
         <h1 style="color: var(--primary-color)">Cài đặt Lucky Draw</h1>
         <form id="setup-form">
           <div class="form-group">
-            <label for="lottery-title-input"
-              >Tên chương trình Lucky Draw:</label
-            >
+            <label for="lottery-title-input">Tên chương trình Lucky Draw:</label>
             <input
               id="lottery-title-input"
               type="text"
@@ -531,14 +581,12 @@
           </div>
 
           <div class="form-group">
-            <label for="customer-file"
-              >Tải lên file CSV thông tin người chơi:</label
-            >
+            <label for="customer-file">Tải lên file CSV thông tin người chơi:</label>
             <input id="customer-file" type="file" accept=".csv" required />
             <small
               ><i
-                >*File CSV cần có cột "ma_so" và "ten_kh" (viết liền không dấu).
-                Mã số có thể chứa chữ và số.</i
+                >*File CSV cần có cột "ma_so" và "ten_kh" (viết liền không dấu). Mã
+                số có thể chứa chữ và số.</i
               ></small
             >
           </div>
@@ -594,9 +642,7 @@
             </label>
           </div>
 
-          <button class="btn btn-primary" type="submit">
-            Bắt đầu Chương trình
-          </button>
+          <button class="btn btn-primary" type="submit">Bắt đầu Chương trình</button>
         </form>
       </div>
 
@@ -737,9 +783,7 @@
         const numDigitsInput = document.getElementById("num-digits");
         const multiWinnerModeCheckbox =
           document.getElementById("multi-winner-mode");
-        const lotteryTitleInput = document.getElementById(
-          "lottery-title-input"
-        );
+        const lotteryTitleInput = document.getElementById("lottery-title-input");
         const lotteryTitleDisplay = document.getElementById(
           "lottery-title-display"
         );
@@ -762,9 +806,7 @@
         const multiPrizeNameSpan = document.getElementById("multi-prize-name");
         const multiWinnersList = document.getElementById("multi-winners-list");
         const historyBody = document.getElementById("history-body");
-        const recentWinnersList = document.getElementById(
-          "recent-winners-list"
-        );
+        const recentWinnersList = document.getElementById("recent-winners-list");
         const RECENT_LIMIT = 20;
 
         /* ---- Modal ---- */
@@ -865,16 +907,25 @@
 
         // Điều chỉnh kích thước ô số theo số lượng ô để vừa giao diện
         const adjustDigitSizing = (count) => {
-          let w = 70, h = 90, f = 3.5, gap = 1.0;
+          let w = 70,
+            h = 90,
+            f = 3.5,
+            gap = 1.0;
           if (count >= 11 && count <= 14) {
-            w = 56; h = 78; f = 3.0; gap = 0.75;
+            w = 56;
+            h = 78;
+            f = 3.0;
+            gap = 0.75;
           } else if (count >= 15) {
-            w = 44; h = 64; f = 2.2; gap = 0.5;
+            w = 44;
+            h = 64;
+            f = 2.2;
+            gap = 0.5;
           }
-          document.documentElement.style.setProperty('--digit-w', w + 'px');
-          document.documentElement.style.setProperty('--digit-h', h + 'px');
-          document.documentElement.style.setProperty('--digit-font', f + 'rem');
-          document.documentElement.style.setProperty('--digit-gap', gap + 'rem');
+          document.documentElement.style.setProperty("--digit-w", w + "px");
+          document.documentElement.style.setProperty("--digit-h", h + "px");
+          document.documentElement.style.setProperty("--digit-font", f + "rem");
+          document.documentElement.style.setProperty("--digit-gap", gap + "rem");
         };
 
         const updatePrizeSelect = () => {
@@ -1066,7 +1117,7 @@
 
           // Sau vòng lặp, prize.remaining đã về 0
           updatePrizeSelect();
-		  if (prizeIndex > -1) prizeSelect.value = String(prizeIndex);
+          if (prizeIndex > -1) prizeSelect.value = String(prizeIndex);
           startBtn.disabled = false;
           prizeSelect.disabled = false;
         };
@@ -1134,7 +1185,7 @@
               isMultiWinnerMode = multiWinnerModeCheckbox.checked;
 
               adjustDigitSizing(numDigits);
-			  initializeApp();
+              initializeApp();
               setupView.classList.add("hidden");
               mainView.classList.remove("hidden");
             } catch (err) {
@@ -1232,16 +1283,13 @@
             showAlert("Chưa có dữ liệu để xuất.");
             return;
           }
-          // Header
           const rows = [["giai_thuong", "ma_so", "ten_kh"]];
-          // bảng lịch sử dùng prepend ⇒ mới nhất ở trên → export theo thứ tự đó
           winners
             .slice()
             .reverse()
             .forEach((w) => {
               rows.push([w.prizeName ?? "", w.ma_so ?? "", w.ten_kh ?? ""]);
             });
-          // CSV + BOM UTF-8
           const csv = rows
             .map((r) =>
               r.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(",")
@@ -1279,10 +1327,7 @@
             "--panel-alpha",
             alpha.toString()
           );
-          document.documentElement.style.setProperty(
-            "--panel-blur",
-            `${blur}px`
-          );
+          document.documentElement.style.setProperty("--panel-blur", `${blur}px`);
           if (opacityLabel) opacityLabel.textContent = alpha.toFixed(2);
           if (blurLabel) blurLabel.textContent = `${blur}px`;
         };
@@ -1294,13 +1339,10 @@
         document.addEventListener("keydown", (event) => {
           if (event.key === "F1") {
             event.preventDefault();
-            if (mainView.classList.contains("hidden")) return; // chỉ sau khi bắt đầu
+            if (mainView.classList.contains("hidden")) return;
             const toHistory = !mainView.classList.contains("history-only");
             mainView.classList.toggle("history-only", toHistory);
-            historySection.classList.toggle(
-              "hidden",
-              !toHistory ? true : false
-            );
+            historySection.classList.toggle("hidden", !toHistory ? true : false);
           }
         });
       });
